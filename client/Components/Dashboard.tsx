@@ -1,17 +1,21 @@
 import React, { useState } from 'react';
 
-interface ParsedCoverLetterResponse {
+interface GenerateCoverLetterResponse {
   coverLetter: string;
-  pdfBase64?: string;
   pdfFilename?: string;
+}
+
+interface RenderPdfResponse {
+  pdfBase64: string;
+  pdfFilename: string;
 }
 
 const Dashboard = () => {
   const [coverLetter, setCoverLetter] = useState('');
-  const [pdfBase64, setPdfBase64] = useState('');
   const [pdfFilename, setPdfFilename] = useState('Cover Letter.pdf');
   const [naturalLanguageQuery, setNaturalLanguageQuery] = useState('');
   const [loading, setLoading] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -19,7 +23,6 @@ const Dashboard = () => {
     setLoading(true);
     setError('');
     setCoverLetter('');
-    setPdfBase64('');
     setPdfFilename('Cover Letter.pdf');
 
     try {
@@ -35,13 +38,10 @@ const Dashboard = () => {
         const parsedError: { err: string } = await coverLetterResponse.json();
         setError(parsedError.err);
       } else {
-        const parsedCoverLetterResponse: ParsedCoverLetterResponse =
+        const parsed: GenerateCoverLetterResponse =
           await coverLetterResponse.json();
-        setCoverLetter(parsedCoverLetterResponse.coverLetter);
-        setPdfBase64(parsedCoverLetterResponse.pdfBase64 ?? '');
-        setPdfFilename(
-          parsedCoverLetterResponse.pdfFilename ?? 'Cover Letter.pdf',
-        );
+        setCoverLetter(parsed.coverLetter);
+        setPdfFilename(parsed.pdfFilename ?? 'Cover Letter.pdf');
       }
     } catch (_err) {
       setError('Error processing your request.');
@@ -50,22 +50,50 @@ const Dashboard = () => {
     }
   };
 
-  const handleDownloadPdf = () => {
-    if (!pdfBase64) {
+  const handleDownloadPdf = async () => {
+    if (!coverLetter.trim()) {
       return;
     }
-    const binary = atob(pdfBase64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i += 1) {
-      bytes[i] = binary.charCodeAt(i);
+
+    setPdfLoading(true);
+    setError('');
+
+    try {
+      const pdfResponse = await fetch('/api/pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          coverLetter,
+          naturalLanguageQuery,
+        }),
+      });
+
+      if (pdfResponse.status !== 200) {
+        const parsedError: { err: string } = await pdfResponse.json();
+        setError(parsedError.err);
+        return;
+      }
+
+      const parsed: RenderPdfResponse = await pdfResponse.json();
+      const binary = atob(parsed.pdfBase64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = parsed.pdfFilename || pdfFilename;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (_err) {
+      setError('Error building the PDF.');
+    } finally {
+      setPdfLoading(false);
     }
-    const blob = new Blob([bytes], { type: 'application/pdf' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = pdfFilename;
-    link.click();
-    URL.revokeObjectURL(url);
   };
 
   return (
@@ -87,12 +115,19 @@ const Dashboard = () => {
         <h2>Cover Letter</h2>
         {coverLetter && (
           <>
-            <button type="button" onClick={handleDownloadPdf} disabled={!pdfBase64}>
-              Download PDF
+            <button
+              type="button"
+              onClick={handleDownloadPdf}
+              disabled={pdfLoading || !coverLetter.trim()}
+            >
+              {pdfLoading ? 'Building PDF...' : 'Download PDF'}
             </button>
-            <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-              {coverLetter}
-            </pre>
+            <textarea
+              className="cover-letter-editor"
+              value={coverLetter}
+              onChange={(e) => setCoverLetter(e.target.value)}
+              aria-label="Editable cover letter"
+            />
           </>
         )}
       </div>

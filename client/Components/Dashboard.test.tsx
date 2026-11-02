@@ -21,7 +21,7 @@ describe('Dashboard Component', () => {
       })
       .reply(200, {
         coverLetter: sampleCoverLetter,
-        pdfBase64: 'cGRm',
+        pdfFilename: 'Cover Letter - Acme.pdf',
       });
 
     nock(window.location.origin)
@@ -31,6 +31,14 @@ describe('Dashboard Component', () => {
       })
       .reply(500, {
         err: 'An error occurred',
+      });
+
+    nock(window.location.origin)
+      .persist()
+      .post('/api/pdf', (body) => typeof body.coverLetter === 'string')
+      .reply(200, {
+        pdfBase64: 'cGRm',
+        pdfFilename: 'Cover Letter - Acme.pdf',
       });
   });
 
@@ -75,7 +83,7 @@ describe('Dashboard Component', () => {
     );
   });
 
-  test('displays generated cover letter on successful API call', async () => {
+  test('shows editable cover letter on successful API call', async () => {
     render(<Dashboard />);
     fireEvent.change(
       screen.getByPlaceholderText('Enter the job description here...'),
@@ -87,8 +95,32 @@ describe('Dashboard Component', () => {
 
     await waitFor(() =>
       expect(
-        screen.getByText(/I am excited to apply for this role/),
+        screen.getByLabelText('Editable cover letter'),
       ).toBeInTheDocument(),
+    );
+    expect(screen.getByLabelText('Editable cover letter')).toHaveValue(
+      sampleCoverLetter,
+    );
+  });
+
+  test('requests PDF with edited cover letter text on download', async () => {
+    render(<Dashboard />);
+    fireEvent.change(
+      screen.getByPlaceholderText('Enter the job description here...'),
+      {
+        target: { value: 'Senior engineer role at Acme' },
+      },
+    );
+    fireEvent.click(screen.getByText('Generate Cover Letter'));
+
+    const editor = await screen.findByLabelText('Editable cover letter');
+    fireEvent.change(editor, {
+      target: { value: 'Dear Acme,\n\nEdited paragraph.\n' },
+    });
+    fireEvent.click(screen.getByText('Download PDF'));
+
+    await waitFor(() =>
+      expect(screen.queryByText('Building PDF...')).not.toBeInTheDocument(),
     );
   });
 
@@ -118,9 +150,9 @@ describe('Dashboard Component', () => {
       expect(screen.queryByText('An error occurred')).not.toBeInTheDocument(),
     );
     await waitFor(() =>
-      expect(
-        screen.getByText(/I am excited to apply for this role/),
-      ).toBeInTheDocument(),
+      expect(screen.getByLabelText('Editable cover letter')).toHaveValue(
+        sampleCoverLetter,
+      ),
     );
   });
 });

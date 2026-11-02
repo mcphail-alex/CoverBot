@@ -10,14 +10,8 @@ jest.mock('./controllers/naturalLanguageController', () => ({
 
 jest.mock('./controllers/openaiController', () => ({
   queryOpenAI: jest.fn((_req, res, next) => {
-    res.locals.coverLetter = 'Dear Hiring Manager,\n\nExcited to apply.\n';
-    next();
-  }),
-}));
-
-jest.mock('./controllers/coverLetterPdfController', () => ({
-  attachCoverLetterPdf: jest.fn((_req, res, next) => {
-    res.locals.coverLetterPdfBase64 = 'cGRm';
+    res.locals.coverLetter =
+      'Dear Acme Corp Hiring Team,\n\nExcited to apply.\n';
     next();
   }),
 }));
@@ -33,9 +27,37 @@ describe('POST /api', () => {
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
-      coverLetter: 'Dear Hiring Manager,\n\nExcited to apply.\n',
-      pdfBase64: 'cGRm',
+      coverLetter: 'Dear Acme Corp Hiring Team,\n\nExcited to apply.\n',
       pdfFilename: 'Cover Letter - Acme Corp.pdf',
     });
+  });
+});
+
+describe('POST /api/pdf', () => {
+  it('should return 400 when cover letter text is missing', async () => {
+    const response = await request(app)
+      .post('/api/pdf')
+      .send({ naturalLanguageQuery: 'Role at Acme' })
+      .set('Content-Type', 'application/json');
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      err: 'Cover letter text is required to build a PDF',
+    });
+  });
+
+  it('should return a PDF for cover letter text', async () => {
+    const response = await request(app)
+      .post('/api/pdf')
+      .send({
+        coverLetter: 'Dear Acme Corp Hiring Team,\n\nEdited body text.\n',
+        naturalLanguageQuery: 'Senior engineer role at Acme Corp',
+      })
+      .set('Content-Type', 'application/json');
+
+    expect(response.status).toBe(200);
+    expect(response.body.pdfFilename).toBe('Cover Letter - Acme Corp.pdf');
+    expect(typeof response.body.pdfBase64).toBe('string');
+    expect(response.body.pdfBase64.length).toBeGreaterThan(100);
   });
 });

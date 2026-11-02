@@ -98,6 +98,17 @@ button:disabled {
   color: black;
 }
 
+.cover-letter-editor {
+  width: 100%;
+  min-height: 420px;
+  margin-top: 12px;
+  background-color: #f8f9fb;
+  color: #111;
+  border: 1px solid #d0d7e2;
+  line-height: 1.5;
+  font-family: Helvetica, Arial, sans-serif;
+}
+
 pre {
   /* background-color: #0d141d; */
   color: #c7d4ed;

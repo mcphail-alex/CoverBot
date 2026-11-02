@@ -1,5 +1,14 @@
 const INVALID_FILENAME_CHARS = /[\\/:*?"<>|]/g;
 
+const SALUTATION_SUFFIXES = [
+  ' hiring committee',
+  ' hiring team',
+  ' engineering team',
+  ' recruiting team',
+  ' recruitment team',
+  ' team',
+];
+
 function cleanCompanyName(raw: string): string {
   return raw
     .replace(/\s+/g, ' ')
@@ -7,8 +16,67 @@ function cleanCompanyName(raw: string): string {
     .trim();
 }
 
+function isPlausibleCompanyName(name: string): boolean {
+  if (name.length < 2 || name.length > 50) {
+    return false;
+  }
+  if (/^www\.?/i.test(name) || /^https?:/i.test(name)) {
+    return false;
+  }
+  if (/\.(com|org|net|io|co)\b/i.test(name)) {
+    return false;
+  }
+  if (!/[A-Za-z]/.test(name)) {
+    return false;
+  }
+  return true;
+}
+
+function normalizeSalutationAudience(audience: string): string | undefined {
+  let name = cleanCompanyName(audience.replace(/^the\s+/i, ''));
+
+  for (const suffix of SALUTATION_SUFFIXES) {
+    if (name.toLowerCase().endsWith(suffix)) {
+      name = name.slice(0, -suffix.length).trim();
+      break;
+    }
+  }
+
+  name = cleanCompanyName(name);
+  return isPlausibleCompanyName(name) ? name : undefined;
+}
+
 /**
- * Best-effort company name from a pasted job description (for download filenames).
+ * Company name from the model salutation, e.g. "Dear SSL Store Hiring Team,".
+ */
+export function extractCompanyFromSalutation(coverLetter: string): string | undefined {
+  const text = coverLetter.replace(/\r\n/g, '\n').trim();
+  if (!text) {
+    return undefined;
+  }
+
+  const patterns = [
+    /^Dear\s+(.+?)\s*,\s*(?:\n|$)/im,
+    /^Dear\s+(.+?)\s*,/im,
+  ];
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    const audience = match?.[1]?.trim();
+    if (!audience) {
+      continue;
+    }
+    const company = normalizeSalutationAudience(audience);
+    if (company) {
+      return company;
+    }
+  }
+
+  return undefined;
+}
+
+/**
+ * Fallback: best-effort company name from a pasted job description.
  */
 export function extractCompanyName(jobDescription: string): string | undefined {
   const text = jobDescription.replace(/\r\n/g, '\n').trim();
@@ -27,7 +95,7 @@ export function extractCompanyName(jobDescription: string): string | undefined {
   for (const pattern of patterns) {
     const match = text.match(pattern);
     const candidate = match?.[1] ? cleanCompanyName(match[1]) : '';
-    if (candidate.length >= 2 && candidate.length <= 50) {
+    if (isPlausibleCompanyName(candidate)) {
       return candidate;
     }
   }
@@ -35,8 +103,17 @@ export function extractCompanyName(jobDescription: string): string | undefined {
   return undefined;
 }
 
-export function buildCoverLetterPdfFilename(jobDescription: string): string {
-  const company = extractCompanyName(jobDescription);
+export function buildCoverLetterPdfFilename(
+  jobDescription: string,
+  coverLetter?: string,
+): string {
+  const fromSalutation =
+    coverLetter !== undefined
+      ? extractCompanyFromSalutation(coverLetter)
+      : undefined;
+  const company =
+    fromSalutation ?? extractCompanyName(jobDescription ?? '');
+
   if (!company) {
     return 'Cover Letter.pdf';
   }

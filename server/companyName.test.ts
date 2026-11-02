@@ -1,4 +1,30 @@
-import { buildCoverLetterPdfFilename, extractCompanyName } from './companyName';
+import {
+  buildCoverLetterPdfFilename,
+  extractCompanyFromSalutation,
+  extractCompanyName,
+} from './companyName';
+
+describe('extractCompanyFromSalutation', () => {
+  it('extracts company from a standard salutation', () => {
+    const letter = `Dear SSL Store Hiring Team,
+
+I am excited to apply.`;
+
+    expect(extractCompanyFromSalutation(letter)).toBe('SSL Store');
+  });
+
+  it('extracts company from an engineering team salutation', () => {
+    const letter = `Dear Lattice Engineering Team,
+
+Hello.`;
+
+    expect(extractCompanyFromSalutation(letter)).toBe('Lattice');
+  });
+
+  it('does not treat URL fragments as company names', () => {
+    expect(extractCompanyFromSalutation('Dear www,\n\nBody')).toBeUndefined();
+  });
+});
 
 describe('extractCompanyName', () => {
   it('extracts company from "role at Company" phrasing', () => {
@@ -12,10 +38,25 @@ We are looking for...`;
       'Lattice',
     );
   });
+
+  it('ignores www from job posts', () => {
+    expect(
+      extractCompanyName('Apply at www.sslstore.com for this role'),
+    ).toBeUndefined();
+  });
 });
 
 describe('buildCoverLetterPdfFilename', () => {
-  it('includes the company name when found', () => {
+  it('prefers the salutation over the job description', () => {
+    expect(
+      buildCoverLetterPdfFilename(
+        'Apply at www.sslstore.com',
+        'Dear SSL Store Hiring Team,\n\nBody',
+      ),
+    ).toBe('Cover Letter - SSL Store.pdf');
+  });
+
+  it('includes the company name from the job description when salutation is missing', () => {
     expect(
       buildCoverLetterPdfFilename(
         'Senior Software Engineer at the SSL Store, powered by DigiCert.',
