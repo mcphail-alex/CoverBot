@@ -20,4 +20,5 @@ coverage/
 
 # data files
 cover_letters.json
+server/data/*.txt
 server/data/resume.doc

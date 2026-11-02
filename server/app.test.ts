@@ -10,36 +10,32 @@ jest.mock('./controllers/naturalLanguageController', () => ({
 
 jest.mock('./controllers/openaiController', () => ({
   queryOpenAI: jest.fn((_req, res, next) => {
-    res.locals.databaseQuery =
-      "SELECT name FROM public.people WHERE eye_color = 'white';";
+    res.locals.coverLetter = 'Dear Hiring Manager,\n\nExcited to apply.\n';
     next();
   }),
 }));
 
-jest.mock('./controllers/databaseController', () => ({
-  queryStarWarsDatabase: jest.fn((_req, res, next) => {
-    res.locals.databaseQueryResult = [{ name: 'Sly Moore' }];
+jest.mock('./controllers/coverLetterPdfController', () => ({
+  attachCoverLetterPdf: jest.fn((_req, res, next) => {
+    res.locals.coverLetterPdfBase64 = 'cGRm';
     next();
   }),
 }));
 
 describe('POST /api', () => {
-  it('should return 200 and the expected response', async () => {
+  it('should return 200 and the generated cover letter', async () => {
     const response = await request(app)
       .post('/api')
-      .send(
-        JSON.stringify({
-          naturalLanguageQuery: 'Name the person with white eyes',
-        })
-      )
+      .send({
+        naturalLanguageQuery: 'Senior engineer role at Acme Corp',
+      })
       .set('Content-Type', 'application/json');
 
     expect(response.status).toBe(200);
-    expect(response.body).toHaveProperty('databaseQuery');
-    expect(response.body).toHaveProperty('databaseQueryResult');
-    expect(response.body.databaseQuery).toBe(
-      "SELECT name FROM public.people WHERE eye_color = 'white';"
-    );
-    expect(response.body.databaseQueryResult).toEqual([{ name: 'Sly Moore' }]);
+    expect(response.body).toEqual({
+      coverLetter: 'Dear Hiring Manager,\n\nExcited to apply.\n',
+      pdfBase64: 'cGRm',
+      pdfFilename: 'Cover Letter - Acme Corp.pdf',
+    });
   });
 });

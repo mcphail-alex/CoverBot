@@ -6,7 +6,11 @@
   "type": "module",
   "scripts": {
     "start": "nodemon --exec node --no-warnings=ExperimentalWarning --loader ts-node/esm ./server/server.ts & webpack-dev-server --hot --progress --color",
-    "test": "jest"
+    "test": "jest",
+    "extract-signature": "node scripts/extract-signature.mjs"
+  },
+  "engines": {
+    "node": ">=22.0.0"
   },
   "keywords": [],
   "author": "",
@@ -24,7 +28,6 @@
     "@types/express": "^5.0.0",
     "@types/jest": "^29.5.14",
     "@types/node": "^22.8.6",
-    "@types/pg": "^8.11.10",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@types/supertest": "^6.0.2",
@@ -53,13 +56,16 @@
     "whatwg-fetch": "^3.6.20"
   },
   "dependencies": {
+    "@napi-rs/canvas": "^1.1.0",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
+    "dotenv": "^16.6.1",
     "express": "^4.21.1",
     "nock": "^13.5.5",
-    "openai": "^4.69.0",
-    "pg": "^8.13.1",
+    "openai": "^7.47.0",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^4.10.38",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "sharp": "^0.35.5"
   }
 }

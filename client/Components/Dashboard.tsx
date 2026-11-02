@@ -2,11 +2,15 @@ import React, { useState } from 'react';
 
 interface ParsedCoverLetterResponse {
   coverLetter: string;
+  pdfBase64?: string;
+  pdfFilename?: string;
 }
 
 const Dashboard = () => {
   const [coverLetter, setCoverLetter] = useState('');
-  const [naturalLanguageQuery, setNaturalLanguageQuery] = useState('')
+  const [pdfBase64, setPdfBase64] = useState('');
+  const [pdfFilename, setPdfFilename] = useState('Cover Letter.pdf');
+  const [naturalLanguageQuery, setNaturalLanguageQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -15,7 +19,9 @@ const Dashboard = () => {
     setLoading(true);
     setError('');
     setCoverLetter('');
-   
+    setPdfBase64('');
+    setPdfFilename('Cover Letter.pdf');
+
     try {
       const coverLetterResponse = await fetch('/api', {
         method: 'POST',
@@ -31,7 +37,11 @@ const Dashboard = () => {
       } else {
         const parsedCoverLetterResponse: ParsedCoverLetterResponse =
           await coverLetterResponse.json();
-        setCoverLetter(parsedCoverLetterResponse.coverLetter)
+        setCoverLetter(parsedCoverLetterResponse.coverLetter);
+        setPdfBase64(parsedCoverLetterResponse.pdfBase64 ?? '');
+        setPdfFilename(
+          parsedCoverLetterResponse.pdfFilename ?? 'Cover Letter.pdf',
+        );
       }
     } catch (_err) {
       setError('Error processing your request.');
@@ -40,16 +50,24 @@ const Dashboard = () => {
     }
   };
 
-  const renderMarkdown = () => {
-    return (
-      <div className="markdown-viewer">
-        <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-        {coverLetter}
-      </pre>
-      </div>
-    );
+  const handleDownloadPdf = () => {
+    if (!pdfBase64) {
+      return;
+    }
+    const binary = atob(pdfBase64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    const blob = new Blob([bytes], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = pdfFilename;
+    link.click();
+    URL.revokeObjectURL(url);
   };
-  
+
   return (
     <div className="container">
       <form onSubmit={handleSubmit}>
@@ -60,16 +78,24 @@ const Dashboard = () => {
           required
         />
         <button type="submit" disabled={loading}>
-          {loading ? 'Executing...' : 'Execute'}
+          {loading ? 'Generating...' : 'Generate Cover Letter'}
         </button>
       </form>
       {error && <p className="error">{error}</p>}
-      
-        <div className="result">
-          <h2>Cover Letter:</h2>
-          {renderMarkdown()}
-        </div>
-      
+
+      <div className="result">
+        <h2>Cover Letter</h2>
+        {coverLetter && (
+          <>
+            <button type="button" onClick={handleDownloadPdf} disabled={!pdfBase64}>
+              Download PDF
+            </button>
+            <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+              {coverLetter}
+            </pre>
+          </>
+        )}
+      </div>
     </div>
   );
 };

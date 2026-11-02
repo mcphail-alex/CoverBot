@@ -3,8 +3,10 @@ import cors from 'cors';
 import 'dotenv/config';
 
 import { parseNaturalLanguageQuery } from './controllers/naturalLanguageController.js';
+import { attachCoverLetterPdf } from './controllers/coverLetterPdfController.js';
 import { queryOpenAI } from './controllers/openaiController.js';
 
+import { buildCoverLetterPdfFilename } from './companyName.js';
 import { ServerError } from './types';
 
 const app = express();
@@ -16,9 +18,16 @@ app.post(
   '/api',
   parseNaturalLanguageQuery,
   queryOpenAI,
-  (_req, res) => {
+  attachCoverLetterPdf,
+  (req, res) => {
+    const jobDescription =
+      res.locals.naturalLanguageQuery ?? req.body?.naturalLanguageQuery ?? '';
     res.status(200).json({
       coverLetter: res.locals.coverLetter,
+      pdfBase64: res.locals.coverLetterPdfBase64,
+      pdfFilename: buildCoverLetterPdfFilename(
+        typeof jobDescription === 'string' ? jobDescription : '',
+      ),
     });
   }
 );
